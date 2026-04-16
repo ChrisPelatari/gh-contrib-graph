@@ -1,8 +1,41 @@
+const MOBILE_QUERY = '(max-width: 600px)';
+const MOBILE_WEEKS = 13;
+
 async function fetchData(ghLogin) {
     let response = await fetch(`https://lengthylyova.pythonanywhere.com/api/gh-contrib-graph/fetch-data/?githubLogin=${ghLogin}`, {method: "GET"});
     let data = await response.json();
     console.log(data)
     return data['data']['user']
+}
+
+function isMobile() {
+    return typeof window !== 'undefined' && window.matchMedia(MOBILE_QUERY).matches;
+}
+
+function deriveMonthsFromWeeks(weeks) {
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const result = [];
+    for (const week of weeks) {
+        const firstDay = week.contributionDays[0];
+        if (!firstDay) continue;
+        const name = monthNames[new Date(firstDay.date + 'T00:00:00').getUTCMonth()];
+        const last = result[result.length - 1];
+        if (last && last.name === name) last.totalWeeks++;
+        else result.push({ name, totalWeeks: 1 });
+    }
+    return result;
+}
+
+function sumContributions(weeks) {
+    let total = 0;
+    for (const week of weeks) {
+        for (const day of week.contributionDays) total += day.contributionCount;
+    }
+    return total;
+}
+
+function clearRendered(container) {
+    container.querySelectorAll('.ghCalendarHeader, .ghCalendarCard, .ghThumbNail').forEach(el => el.remove());
 }
 
 function init_table() {
@@ -90,13 +123,13 @@ function init_canvas() {
     return canvas;
 }
 
-function init_header(total_contribs, ghLogin, avatarUrl) {
+function init_header(total_contribs, ghLogin, avatarUrl, periodLabel) {
     const header = document.createElement("div");
     const total = document.createElement("span");
     const profile = document.createElement("div");
     profile.innerHTML = `<a href="https://github.com/${ghLogin}">${ghLogin}</a><img src="${avatarUrl}">`
     header.className = "ghCalendarHeader";
-    total.textContent = `${total_contribs} contributions in the last year`;
+    total.textContent = `${total_contribs} contributions in the last ${periodLabel}`;
     header.appendChild(total);
     header.appendChild(profile);
     return header
@@ -118,26 +151,44 @@ function init_thumbnail() {
     return thumbnail
 }
 
-async function main() {
-    const container = document.getElementById("gh");
-    const ghLogin = container.dataset.login;
-    const data = await fetchData(ghLogin);
+function render(container, data, ghLogin) {
+    clearRendered(container);
+    if (!data) return;
+
     const calendar = data["contributionsCollection"]["contributionCalendar"];
+    const mobile = isMobile();
+    const visibleWeeks = mobile ? calendar.weeks.slice(-MOBILE_WEEKS) : calendar.weeks;
+    const months = mobile ? deriveMonthsFromWeeks(visibleWeeks) : calendar.months;
+    const totalContribs = mobile ? sumContributions(visibleWeeks) : calendar.totalContributions;
+    const periodLabel = mobile ? 'quarter' : 'year';
+
     const [table, thead, tbody] = init_table();
     const card = init_card();
     const canvas = init_canvas();
-    const header = init_header(calendar["totalContributions"], ghLogin, data["avatarUrl"]);
+    const header = init_header(totalContribs, ghLogin, data["avatarUrl"], periodLabel);
     const footer = init_card_footer();
     const thumbnail = init_thumbnail();
 
-    addWeeks(tbody, calendar["weeks"], calendar["colors"]);
-    addMonths(thead, calendar["months"]);
+    addWeeks(tbody, visibleWeeks, calendar["colors"]);
+    addMonths(thead, months);
     canvas.appendChild(table);
     canvas.appendChild(footer);
     card.appendChild(canvas);
     container.appendChild(header);
     container.appendChild(card);
     container.appendChild(thumbnail);
+}
+
+async function main() {
+    const container = document.getElementById("gh");
+    const ghLogin = container.dataset.login;
+    const data = await fetchData(ghLogin);
+    render(container, data, ghLogin);
+
+    if (typeof window !== 'undefined') {
+        const mq = window.matchMedia(MOBILE_QUERY);
+        mq.addEventListener('change', () => render(container, data, ghLogin));
+    }
 }
 
 main()
