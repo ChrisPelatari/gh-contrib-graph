@@ -131,21 +131,30 @@
 /* Header */
 .ghCalendarHeader {
     margin-bottom: var(--gh-base-size-4);
-    height: 20px;
-}
-.ghCalendarHeader span {
-    float: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--gh-base-size-8);
 }
 .ghCalendarHeader div {
     display: flex;
     flex-direction: row;
-    float: right;
+    align-items: center;
 }
 .ghCalendarHeader div img {
     width: 20px;
     height: 20px;
     border-radius: 10px;
     margin-left: var(--gh-base-size-4);
+}
+
+@media (max-width: 600px) {
+    .ghCalendarHeader {
+        justify-content: center;
+    }
+    .ghCalendarHeader > div {
+        display: none;
+    }
 }
 
 /* Footer */
