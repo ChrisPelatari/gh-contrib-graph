@@ -60,7 +60,7 @@ function init_table() {
 function addMonths(thead, months) {
     for (let i = 0; i < months.length; i++) {
         const total_weeks = months[i]["totalWeeks"];
-        if (total_weeks => 2) {
+        if (total_weeks >= 2) {
             let cell = thead.rows[0].insertCell();
             let label = document.createElement("span");
             label.textContent = months[i]["name"];
